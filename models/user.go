@@ -4,15 +4,21 @@ import (
 	"os"
 	"strconv"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type CreateUserParams struct {
-	FirstName string `bjson:"firstName" validate:"required"`
-	LastName  string `json:"lastName" validate:"required"`
-	Email     string `json:"email" validate:"required,email"`
+	FirstName string `bson:"firstName" json:"firstName" validate:"required"`
+	LastName  string `bson:"lastName" json:"lastName" validate:"required"`
+	Email     string `bson:"email" json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=8"`
+}
+type UpdateUserParams struct {
+	FirstName string `bson:"firstName,omitempty" json:"firstName" validate:""`
+	LastName  string `bson:"lastName,omitempty" json:"lastName" validate:""`
+	Email     string `bson:"email,omitempty" json:"email" validate:"email"`
 }
 
 type User struct {
@@ -35,4 +41,14 @@ func NewUserFromParams(params CreateUserParams) (*User, error) {
 		Email:             params.Email,
 		EncryptedPassword: string(encryptedPw),
 	}, nil
+}
+
+func ToDoc(v interface{}) (doc *bson.D, err error) {
+	data, err := bson.Marshal(v)
+	if err != nil {
+		return
+	}
+
+	err = bson.Unmarshal(data, &doc)
+	return
 }
