@@ -1,13 +1,14 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"hotel-project/models"
 	"hotel-project/store"
 	"hotel-project/validation"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type UserHandler struct {
@@ -28,7 +29,9 @@ func (h *UserHandler) HandleGetUser(c *fiber.Ctx) error {
 	)
 	user, err := h.userStore.GetUserByID(c.Context(), id)
 	if err != nil {
-		return fiber.NewError(fiber.StatusNotFound, err.Error())
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return c.Status(fiber.StatusNotFound).JSON(map[string]string{"error": "not found"})
+		}
 	}
 	return c.JSON(user)
 }
@@ -52,19 +55,15 @@ func (h *UserHandler) HandlePostUser(c *fiber.Ctx) error {
 
 	errs := h.userValidator.Validate(params)
 	if len(errs) > 0 {
-		errMsgs := make([]string, 0)
+		errMap := make(map[string]string)
 		for _, err := range errs {
-			errMsgs = append(errMsgs, fmt.Sprintf(
-				"[%s]: '%v' Needs to implement '%s'",
-				err.FailedField,
+			errMap[err.FailedField] = fmt.Sprintf(
+				"'%v' Needs to implement '%s'",
 				err.Value,
 				err.Tag,
-			))
+			)
 		}
-		return &fiber.Error{
-			Code:    fiber.StatusBadRequest,
-			Message: strings.Join(errMsgs, " and "),
-		}
+		return c.JSON(errMap)
 	}
 
 	user, err := models.NewUserFromParams(params)
@@ -76,4 +75,40 @@ func (h *UserHandler) HandlePostUser(c *fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(insertedUser)
+}
+
+func (h *UserHandler) HandlePutUser(c *fiber.Ctx) error {
+	userId := c.Params("id")
+	var params models.UpdateUserParams
+	if err := c.BodyParser(&params); err != nil {
+		return err
+	}
+	errs := h.userValidator.Validate(params)
+	if len(errs) > 0 {
+		errMap := make(map[string]string)
+		for _, err := range errs {
+			errMap[err.FailedField] = fmt.Sprintf(
+				"'%v' Needs to implement '%s'",
+				err.Value,
+				err.Tag,
+			)
+		}
+		return c.JSON(errMap)
+	}
+	updatedUser, err := h.userStore.UpdateUser(c.Context(), userId, &params)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(updatedUser)
+
+}
+
+func (h *UserHandler) HandleDeleteUser(c *fiber.Ctx) error {
+	userId := c.Params("id")
+	if err := h.userStore.DeleteUser(c.Context(), userId); err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusNoContent).JSON(nil)
 }
