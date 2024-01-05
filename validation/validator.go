@@ -1,6 +1,10 @@
 package validation
 
-import "github.com/go-playground/validator/v10"
+import (
+	"reflect"
+
+	"github.com/go-playground/validator/v10"
+)
 
 type (
 	ErrorResponse struct {
@@ -32,10 +36,11 @@ func (v *XValidator) Validate(data interface{}) []ErrorResponse {
 		for _, err := range errs.(validator.ValidationErrors) {
 			// In this case data object is actually holding the User struct
 			var elem ErrorResponse
+			field, _ := reflect.TypeOf(data).FieldByName(err.Field())
 
-			elem.FailedField = err.Field() // Export struct field name
-			elem.Tag = err.Tag()           // Export struct tag
-			elem.Value = err.Value()       // Export field value
+			elem.FailedField = field.Tag.Get("json") // Export struct field name
+			elem.Tag = err.Tag()                     // Export struct tag
+			elem.Value = err.Value()                 // Export field value
 			elem.Error = true
 
 			validationErrors = append(validationErrors, elem)
