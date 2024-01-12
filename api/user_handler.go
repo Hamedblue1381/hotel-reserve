@@ -8,17 +8,18 @@ import (
 	"hotel-project/validation"
 
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type UserHandler struct {
-	userStore     store.UserStore
+	store         *store.Store
 	userValidator *validation.XValidator
 }
 
-func NewUserHandler(userStore store.UserStore, userValidator *validation.XValidator) *UserHandler {
+func NewUserHandler(store *store.Store, userValidator *validation.XValidator) *UserHandler {
 	return &UserHandler{
-		userStore:     userStore,
+		store:         store,
 		userValidator: userValidator,
 	}
 }
@@ -27,7 +28,11 @@ func (h *UserHandler) HandleGetUser(c *fiber.Ctx) error {
 	var (
 		id = c.Params("id")
 	)
-	user, err := h.userStore.GetUserByID(c.Context(), id)
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	user, err := h.store.Users.GetUserByID(c.Context(), oid)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return c.Status(fiber.StatusNotFound).JSON(map[string]string{"error": "not found"})
@@ -40,7 +45,7 @@ func HandleHomePage(c *fiber.Ctx) error {
 	return c.JSON("hello world!")
 }
 func (h *UserHandler) HandleGetUsers(c *fiber.Ctx) error {
-	users, err := h.userStore.GetUsers(c.Context())
+	users, err := h.store.Users.GetUsers(c.Context())
 	if err != nil {
 		return err
 	}
@@ -70,7 +75,7 @@ func (h *UserHandler) HandlePostUser(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	insertedUser, err := h.userStore.InsertUser(c.Context(), user)
+	insertedUser, err := h.store.Users.InsertUser(c.Context(), user)
 	if err != nil {
 		return err
 	}
@@ -79,6 +84,10 @@ func (h *UserHandler) HandlePostUser(c *fiber.Ctx) error {
 
 func (h *UserHandler) HandlePutUser(c *fiber.Ctx) error {
 	userId := c.Params("id")
+	oid, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return err
+	}
 	var params models.UpdateUserParams
 	if err := c.BodyParser(&params); err != nil {
 		return err
@@ -95,7 +104,7 @@ func (h *UserHandler) HandlePutUser(c *fiber.Ctx) error {
 		}
 		return c.JSON(errMap)
 	}
-	updatedUser, err := h.userStore.UpdateUser(c.Context(), userId, &params)
+	updatedUser, err := h.store.Users.UpdateUser(c.Context(), oid, &params)
 	if err != nil {
 		return err
 	}
@@ -106,7 +115,11 @@ func (h *UserHandler) HandlePutUser(c *fiber.Ctx) error {
 
 func (h *UserHandler) HandleDeleteUser(c *fiber.Ctx) error {
 	userId := c.Params("id")
-	if err := h.userStore.DeleteUser(c.Context(), userId); err != nil {
+	oid, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return err
+	}
+	if err := h.store.Users.DeleteUser(c.Context(), oid); err != nil {
 		return err
 	}
 
