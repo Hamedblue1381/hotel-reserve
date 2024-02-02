@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"hotel-project/api"
+	"hotel-project/middleware"
 	"hotel-project/store"
 	"hotel-project/util"
 	"hotel-project/validation"
@@ -19,6 +20,7 @@ type Server struct {
 	userHandler  *api.UserHandler
 	hotelHandler *api.HotelHandler
 	roomHandler  *api.RoomHandler
+	authHandler  *api.AuthHandler
 }
 
 func NewServer(envConfig *util.Config) *Server {
@@ -46,12 +48,14 @@ func NewServer(envConfig *util.Config) *Server {
 		userHandler  = api.NewUserHandler(store, validation.NewXValidator(validator.New()))
 		hotelHandler = api.NewHotelHandler(store, validation.NewXValidator(validator.New()))
 		roomHandler  = api.NewRoomHandler(store, validation.NewXValidator(validator.New()))
+		authHandler  = api.NewAuthHandler(store, validation.NewXValidator(validator.New()))
 	)
 	return &Server{
 		envConfig:    envConfig,
 		userHandler:  userHandler,
 		hotelHandler: hotelHandler,
 		roomHandler:  roomHandler,
+		authHandler:  authHandler,
 	}
 }
 
@@ -67,21 +71,25 @@ var config = fiber.Config{
 func (s *Server) RunServer() *fiber.App {
 
 	app := fiber.New(config)
-	apiv1 := app.Group("/api/v1")
 
-	apiv1.Get("/user", s.userHandler.HandleGetUsers)
-	apiv1.Get("/user/:id", s.userHandler.HandleGetUser)
-	apiv1.Post("/user", s.userHandler.HandlePostUser)
-	apiv1.Put("/user/:id", s.userHandler.HandlePutUser)
-	apiv1.Delete("/user/:id", s.userHandler.HandleDeleteUser)
+	api := app.Group("/api")
+	v1 := api.Group("/v1", middleware.JWTAuthentication)
 
-	apiv1.Get("/hotels", s.hotelHandler.HandleGetHotels)
-	apiv1.Get("/hotels/:id", s.hotelHandler.HandleGetHotel)
-	apiv1.Post("/hotels", s.hotelHandler.HandlePostHotel)
+	api.Post("/auth", s.authHandler.HandleAuthenticate)
+
+	v1.Get("/user", s.userHandler.HandleGetUsers)
+	v1.Get("/user/:id", s.userHandler.HandleGetUser)
+	v1.Post("/user", s.userHandler.HandlePostUser)
+	v1.Put("/user/:id", s.userHandler.HandlePutUser)
+	v1.Delete("/user/:id", s.userHandler.HandleDeleteUser)
+
+	v1.Get("/hotels", s.hotelHandler.HandleGetHotels)
+	v1.Get("/hotels/:id", s.hotelHandler.HandleGetHotel)
+	v1.Post("/hotels", s.hotelHandler.HandlePostHotel)
 	// apiv1.Put("/hotels/:id", s.hotelHandler.HandlePutHotel)
 	// apiv1.Delete("/hotels/:id", s.hotelHandler.HandleDeleteHotel)
 
-	apiv1.Get("hotel/:id/rooms", s.roomHandler.HandleGetRooms)
+	v1.Get("hotel/:id/rooms", s.roomHandler.HandleGetRooms)
 
 	return app
 }
