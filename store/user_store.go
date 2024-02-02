@@ -12,6 +12,7 @@ import (
 
 type UserStore interface {
 	GetUserByID(context.Context, primitive.ObjectID) (*models.User, error)
+	GetUserByEmail(context.Context, string) (*models.User, error)
 	GetUsers(context.Context) ([]*models.User, error)
 	InsertUser(context.Context, *models.User) (*models.User, error)
 	UpdateUser(context.Context, primitive.ObjectID, *models.UpdateUserParams) (*models.User, error)
@@ -29,7 +30,13 @@ func NewMongoUserStore(client *mongo.Client, coll *mongo.Collection) *MongoUserS
 		coll:   coll,
 	}
 }
-
+func (s *MongoUserStore) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	var user models.User
+	if err := s.coll.FindOne(ctx, bson.M{"email": email}).Decode(&user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
 func (s *MongoUserStore) GetUserByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
 	var user models.User
 	if err := s.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&user); err != nil {
