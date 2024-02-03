@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"hotel-project/models"
 	"hotel-project/store"
 	"hotel-project/util"
@@ -76,10 +75,9 @@ func TestPostUser(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	assert.Equal(t, user.FirstName, params.FirstName)
-	assert.Equal(t, user.LastName, params.LastName)
-	assert.Equal(t, user.Email, params.Email)
+	assert.Equal(t, params.FirstName, user.FirstName)
+	assert.Equal(t, params.LastName, user.LastName)
+	assert.Equal(t, params.Email, user.Email)
 	assert.Empty(t, user.EncryptedPassword)
 	assert.NotEmpty(t, user.ID)
-	fmt.Printf("%+v\n", user)
 }
